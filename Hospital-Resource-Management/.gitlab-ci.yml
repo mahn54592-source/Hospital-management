@@ -1,0 +1,100 @@
+stages:
+  - build
+  - test
+  - push
+  - deploy
+
+default:
+  image: docker:latest
+  services:
+    - docker:dind
+
+build_job:
+  stage: build
+  script:
+    - docker build -t $DOCKERHUB_USER/hospital-resource-management-php:latest . 
+    - mkdir docker-image
+    - docker save $DOCKERHUB_USER/hospital-resource-management-php:latest -o docker-image/hospital-management
+  artifacts:
+    paths:
+     - docker-image/
+  tags:
+    - docker
+  retry: 2
+
+linting_test_job:
+  stage: test
+  image: izumi09/php:8.2-ci:latest  # Has git and unzip pre-installed
+  cache:
+    paths:
+      - vendor/
+  before_script:
+     # Install composer dependencies
+     - curl -sS https://getcomposer.org/installer | php
+     - php composer.phar install --no-progress --no-interaction
+  script:
+    # now ./vendor/bin/phplint is a installed tool . is my current dir
+     - vendor/bin/phplint ./ --no-cache --exclude vendor 
+  tags:
+     - docker
+  retry: 1
+
+unit_testing_job:
+  stage: test
+  image: abkrim/laravel-gitlab-ci:8.3  #have composer,php,node,pdosql
+  cache:
+    paths:
+      - vendor/
+  before_script:
+     - composer install --no-interaction --no-progress
+  script:
+     - mkdir -p tests/logs
+     - ./vendor/bin/phpunit tests/unit --log-junit tests/logs/junit.xml 
+  artifacts:
+    reports:
+      junit: tests/logs/junit.xml
+    expire_in: 4 days
+  tags:
+    - docker
+  retry: 1
+
+integration_test_job:
+ stage: test
+ image: php:8.2-cli
+ services:
+   - name: mysql:8.0
+     alias: mysql
+ variables:
+   MYSQL_ROOT_PASSWORD: root
+   MYSQL_DATABASE: PatientCareSystem
+ before_script:
+   - apt-get update -y
+   - apt-get install -y git unzip curl libzip-dev zip
+   - docker-php-ext-install pdo pdo_mysql
+   - curl -sS https://getcomposer.org/installer | php
+   - php composer.phar install
+ script:
+   - mkdir -p test/logs
+   - ./vendor/bin/phpunit tests/integration --log-junit tests/logs/junit.xml
+ artifacts:
+   reports:
+     junit: tests/logs/junit.xml
+   expire_in: 4 days
+ retry: 2
+
+push_job:
+  stage: push
+  script: 
+    - docker load -i docker-image/hospital-management
+    - echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+    - docker push $DOCKERHUB_USER/hospital-resource-management-php:latest
+  tags:
+    - docker
+
+deploy_job:
+  stage: deploy
+  script:
+    - docker-compose up -d 
+  retry: 1
+  tags:
+    - docker 
