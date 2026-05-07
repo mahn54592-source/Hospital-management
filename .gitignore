@@ -1,0 +1,22 @@
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.backup
+
+# Keys and sensitive files
+**/hospital-key
+*.pem
+*.key
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# IDE files
+.vscode/
+.idea/
+*.suo
+*.user
+*.userosscache
