@@ -1,0 +1,43 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: hospital-deployment
+  namespace: hospital
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: hospital
+
+  template:
+    metadata:
+      labels:
+        app: hospital
+
+    spec:
+      containers:
+      - name: hospital-container
+        image: izumi09/hospital-resource-management-php:latest
+
+        resources:
+          limits:
+            memory: "128Mi"
+            cpu: "500m"
+        ports:
+        - containerPort: 80
+
+        env:
+        - name: DB_HOST
+          value: "mysql"
+
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: hospital-secret
+              key: DB_PASSWORD
+        
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: hospital-secret
+              key: DB_USER      
