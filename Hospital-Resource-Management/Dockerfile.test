@@ -1,0 +1,23 @@
+FROM php:8.2-cli
+
+# install system dependencies
+RUN apt-get update -y && \
+    apt-get install -y \
+    libxml2-dev \
+    git \
+    unzip \
+    wget \
+    curl \
+    libzip-dev \
+    default-mysql-client && \
+    apt-get clean
+
+# install PHP extensions (THIS fixes your error)
+RUN docker-php-ext-install xml pdo pdo_mysql zip
+
+# install composer globally
+RUN curl -sS https://getcomposer.org/installer | php -- \
+    --install-dir=/usr/local/bin --filename=composer
+
+# verify
+RUN php -m | grep -E "xml|pdo_mysql" && composer --version
